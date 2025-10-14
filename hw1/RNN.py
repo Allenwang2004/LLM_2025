@@ -124,7 +124,7 @@ class TextDataset(Dataset):
                 continue
 
             # 限制總 sequence 數量
-            if len(self.sequences) >= 100000:
+            if len(self.sequences) >= 10000000:
                 break
             
             # 創建滑動窗口序列
@@ -231,9 +231,6 @@ class RNNTrainer:
         total_loss = 0
         total_samples = 0
         correct_predictions = 0
-        
-        # print out how many batches
-        logger.info(f"Training on {len(dataloader)} batches...")
         
         for batch_idx, (data, targets) in enumerate(dataloader):
             data, targets = data.to(self.device), targets.to(self.device)
@@ -488,10 +485,10 @@ def main():
     trainer.plot_learning_curves('rnn_learning_curves.png')
     
     # evaluate on test data
-    evaluate_on_test_data(trainer, vocab, 'test.txt', SEQ_LENGTH, BATCH_SIZE)
+    evaluate_on_test_data(trainer, vocab, 'data/test.txt', SEQ_LENGTH, BATCH_SIZE)
     
     # test incomplete sentences
-    test_incomplete_sentences(trainer, 'incomplete.txt')
+    test_incomplete_sentences(trainer, 'data/incomplete.txt')
 
 if __name__ == "__main__":
     main()
