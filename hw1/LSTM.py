@@ -123,7 +123,10 @@ class TextDataset(Dataset):
             # 如果序列太短，跳過
             if len(indices) < 2:
                 continue
-            
+
+            if len(self.sequences) > 1000000:
+                break
+
             # 創建滑動窗口序列
             for i in range(len(indices) - 1):
                 # 輸入序列和目標序列
@@ -439,7 +442,7 @@ def test_incomplete_sentences(trainer, incomplete_file: str):
     print("LSTM 模型文本補全結果")
     print("="*60)
     
-    for incomplete_text in incomplete_texts[:10]:  # 測試前10個
+    for incomplete_text in incomplete_texts:
         completed = trainer.generate_text(incomplete_text, max_length=20, temperature=0.8)
         print(f"輸入: {incomplete_text}")
         print(f"補全: {completed}")
@@ -460,7 +463,7 @@ def main():
     SEQ_LENGTH = 50
     
     # 載入數據
-    train_texts = load_data('train.txt')
+    train_texts = load_data('data/train.txt')
     if not train_texts:
         return
     
@@ -507,11 +510,6 @@ def main():
         
         logger.info(f'Epoch {epoch+1}/{NUM_EPOCHS}, Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.4f}, Time: {epoch_time:.2f}s')
         
-        # 每幾個 epoch 生成一些文本
-        if (epoch + 1) % 3 == 0:
-            print(f"\nEpoch {epoch+1} 生成範例:")
-            sample_text = trainer.generate_text("add salt", max_length=15)
-            print(f"Generated: {sample_text}")
     
     # 保存模型
     torch.save({
@@ -531,22 +529,10 @@ def main():
     trainer.plot_learning_curves('lstm_learning_curves.png')
     
     # 在測試數據上評估模型
-    evaluate_on_test_data(trainer, vocab, 'test.txt', SEQ_LENGTH, BATCH_SIZE)
+    evaluate_on_test_data(trainer, vocab, 'data/test.txt', SEQ_LENGTH, BATCH_SIZE)
     
     # 測試不完整句子補全
-    test_incomplete_sentences(trainer, 'incomplete.txt')
-    
-    # 生成一些範例文本
-    print("\n" + "="*60)
-    print("LSTM 模型文本生成範例")
-    print("="*60)
-    
-    test_prompts = ["add", "cook", "bake", "mix"]
-    for prompt in test_prompts:
-        generated = trainer.generate_text(prompt, max_length=20)
-        print(f"起始詞: {prompt}")
-        print(f"生成文本: {generated}")
-        print("-" * 50)
+    test_incomplete_sentences(trainer, 'data/incomplete.txt')
 
 if __name__ == "__main__":
     main()

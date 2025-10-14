@@ -125,7 +125,7 @@ class TextDataset(Dataset):
                 continue
 
             # 限制總 sequence 數量
-            if len(self.sequences) >= 5000000:
+            if len(self.sequences) >= 1000000:
                 break
             
             # 創建滑動窗口序列
