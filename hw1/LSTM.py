@@ -15,6 +15,8 @@ import logging
 import time
 from typing import List, Tuple, Dict
 import os
+import matplotlib.pyplot as plt
+import math
 
 # 設置日誌
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -217,11 +219,16 @@ class LSTMTrainer:
         self.criterion = nn.CrossEntropyLoss(ignore_index=vocab.word2idx[vocab.pad_token])
         self.optimizer = optim.Adam(model.parameters(), lr=0.001)
         
+        # 追蹤訓練歷史
+        self.train_losses = []
+        self.train_accuracies = []
+        
     def train_epoch(self, dataloader):
         """訓練一個 epoch"""
         self.model.train()
         total_loss = 0
         total_samples = 0
+        correct_predictions = 0
         
         for batch_idx, (data, targets) in enumerate(dataloader):
             data, targets = data.to(self.device), targets.to(self.device)
@@ -233,6 +240,10 @@ class LSTMTrainer:
             # 前向傳播
             outputs, _ = self.model(data, hidden)
             loss = self.criterion(outputs, targets)
+            
+            # 計算準確率
+            _, predicted = torch.max(outputs.data, 1)
+            correct_predictions += (predicted == targets).sum().item()
             
             # 反向傳播
             self.optimizer.zero_grad()
@@ -249,13 +260,21 @@ class LSTMTrainer:
             if batch_idx % 100 == 0:
                 logger.info(f'Batch {batch_idx}, Loss: {loss.item():.4f}')
         
-        return total_loss / total_samples
+        avg_loss = total_loss / total_samples
+        accuracy = correct_predictions / total_samples
+        
+        # 記錄訓練歷史
+        self.train_losses.append(avg_loss)
+        self.train_accuracies.append(accuracy)
+        
+        return avg_loss, accuracy
     
     def evaluate(self, dataloader):
         """評估模型"""
         self.model.eval()
         total_loss = 0
         total_samples = 0
+        correct_predictions = 0
         
         with torch.no_grad():
             for data, targets in dataloader:
@@ -266,10 +285,18 @@ class LSTMTrainer:
                 outputs, _ = self.model(data, hidden)
                 loss = self.criterion(outputs, targets)
                 
+                # 計算準確率
+                _, predicted = torch.max(outputs.data, 1)
+                correct_predictions += (predicted == targets).sum().item()
+                
                 total_loss += loss.item() * batch_size
                 total_samples += batch_size
         
-        return total_loss / total_samples
+        avg_loss = total_loss / total_samples
+        accuracy = correct_predictions / total_samples
+        perplexity = math.exp(avg_loss)
+        
+        return avg_loss, accuracy, perplexity
     
     def generate_text(self, start_text: str, max_length: int = 50, temperature: float = 1.0):
         """生成文本"""
@@ -308,6 +335,32 @@ class LSTMTrainer:
                 generated.append(next_word_idx)
         
         return self.vocab.indices_to_text(generated)
+    
+    def plot_learning_curves(self, save_path='lstm_learning_curves.png'):
+        """繪製學習曲線"""
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
+        
+        # 繪製訓練損失
+        epochs = range(1, len(self.train_losses) + 1)
+        ax1.plot(epochs, self.train_losses, 'b-', label='Training Loss')
+        ax1.set_title('LSTM Training Loss Curve')
+        ax1.set_xlabel('Epoch')
+        ax1.set_ylabel('Loss')
+        ax1.legend()
+        ax1.grid(True)
+        
+        # 繪製訓練準確率
+        ax2.plot(epochs, self.train_accuracies, 'r-', label='Training Accuracy')
+        ax2.set_title('LSTM Training Accuracy Curve')
+        ax2.set_xlabel('Epoch')
+        ax2.set_ylabel('Accuracy')
+        ax2.legend()
+        ax2.grid(True)
+        
+        plt.tight_layout()
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.show()
+        logger.info(f"Learning curves saved to {save_path}")
 
 def load_data(file_path: str) -> List[str]:
     """載入訓練數據"""
@@ -324,6 +377,32 @@ def load_data(file_path: str) -> List[str]:
     
     logger.info(f"Loaded {len(texts)} texts from {file_path}")
     return texts
+
+def evaluate_on_test_data(trainer, vocab, test_file: str, seq_length: int = 50, batch_size: int = 32):
+    """在測試數據上評估模型"""
+    logger.info(f"Evaluating LSTM model on {test_file}...")
+    
+    # 載入測試數據
+    test_texts = load_data(test_file)
+    if not test_texts:
+        return
+    
+    # 創建測試數據集
+    test_dataset = TextDataset(test_texts, vocab, seq_length)
+    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    
+    # 評估模型
+    test_loss, test_accuracy, test_perplexity = trainer.evaluate(test_dataloader)
+    
+    print("\n" + "="*60)
+    print("LSTM 模型測試結果")
+    print("="*60)
+    print(f"測試損失 (Test Loss): {test_loss:.4f}")
+    print(f"測試準確率 (Test Accuracy): {test_accuracy:.4f} ({test_accuracy*100:.2f}%)")
+    print(f"測試困惑度 (Test Perplexity): {test_perplexity:.4f}")
+    print("="*60)
+    
+    return test_loss, test_accuracy, test_perplexity
 
 def test_incomplete_sentences(trainer, incomplete_file: str):
     """測試不完整句子的補全"""
@@ -391,10 +470,10 @@ def main():
     for epoch in range(NUM_EPOCHS):
         start_time = time.time()
         
-        train_loss = trainer.train_epoch(train_dataloader)
+        train_loss, train_accuracy = trainer.train_epoch(train_dataloader)
         
         epoch_time = time.time() - start_time
-        logger.info(f'Epoch {epoch+1}/{NUM_EPOCHS}, Train Loss: {train_loss:.4f}, Time: {epoch_time:.2f}s')
+        logger.info(f'Epoch {epoch+1}/{NUM_EPOCHS}, Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.4f}, Time: {epoch_time:.2f}s')
         
         # 每幾個 epoch 生成一些文本
         if (epoch + 1) % 3 == 0:
@@ -415,6 +494,12 @@ def main():
     }, 'lstm_model.pth')
     
     logger.info("Model saved to lstm_model.pth")
+    
+    # 繪製學習曲線
+    trainer.plot_learning_curves('lstm_learning_curves.png')
+    
+    # 在測試數據上評估模型
+    evaluate_on_test_data(trainer, vocab, 'test.txt', SEQ_LENGTH, BATCH_SIZE)
     
     # 測試不完整句子補全
     test_incomplete_sentences(trainer, 'incomplete.txt')
