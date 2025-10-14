@@ -122,6 +122,10 @@ class TextDataset(Dataset):
             # 如果序列太短，跳過
             if len(indices) < 2:
                 continue
+
+            # 限制總 sequence 數量
+            if len(self.sequences) >= 100000:
+                break
             
             # 創建滑動窗口序列
             for i in range(len(indices) - 1):
