@@ -17,6 +17,7 @@ from typing import List, Tuple, Dict
 import os
 import matplotlib.pyplot as plt
 import math
+from tqdm import tqdm
 
 # 設置日誌
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -230,7 +231,10 @@ class LSTMTrainer:
         total_samples = 0
         correct_predictions = 0
         
-        for batch_idx, (data, targets) in enumerate(dataloader):
+        # 創建 tqdm 進度條
+        pbar = tqdm(dataloader, desc="Training", leave=False)
+        
+        for batch_idx, (data, targets) in enumerate(pbar):
             data, targets = data.to(self.device), targets.to(self.device)
             batch_size = data.size(0)
             
@@ -257,8 +261,13 @@ class LSTMTrainer:
             total_loss += loss.item() * batch_size
             total_samples += batch_size
             
-            if batch_idx % 100 == 0:
-                logger.info(f'Batch {batch_idx}, Loss: {loss.item():.4f}')
+            # 更新進度條
+            current_loss = total_loss / total_samples
+            current_acc = correct_predictions / total_samples
+            pbar.set_postfix({
+                'Loss': f'{current_loss:.4f}',
+                'Acc': f'{current_acc:.4f}'
+            })
         
         avg_loss = total_loss / total_samples
         accuracy = correct_predictions / total_samples
@@ -276,8 +285,11 @@ class LSTMTrainer:
         total_samples = 0
         correct_predictions = 0
         
+        # 創建 tqdm 進度條用於評估
+        pbar = tqdm(dataloader, desc="Evaluating", leave=False)
+        
         with torch.no_grad():
-            for data, targets in dataloader:
+            for data, targets in pbar:
                 data, targets = data.to(self.device), targets.to(self.device)
                 batch_size = data.size(0)
                 
@@ -291,6 +303,14 @@ class LSTMTrainer:
                 
                 total_loss += loss.item() * batch_size
                 total_samples += batch_size
+                
+                # 更新進度條
+                current_loss = total_loss / total_samples
+                current_acc = correct_predictions / total_samples
+                pbar.set_postfix({
+                    'Loss': f'{current_loss:.4f}',
+                    'Acc': f'{current_acc:.4f}'
+                })
         
         avg_loss = total_loss / total_samples
         accuracy = correct_predictions / total_samples
@@ -467,12 +487,24 @@ def main():
     
     # 訓練模型
     logger.info("Starting training...")
-    for epoch in range(NUM_EPOCHS):
+    
+    # 創建 epoch 進度條
+    epoch_pbar = tqdm(range(NUM_EPOCHS), desc="LSTM Training Progress")
+    
+    for epoch in epoch_pbar:
         start_time = time.time()
         
         train_loss, train_accuracy = trainer.train_epoch(train_dataloader)
         
         epoch_time = time.time() - start_time
+        
+        # 更新 epoch 進度條
+        epoch_pbar.set_postfix({
+            'Loss': f'{train_loss:.4f}',
+            'Acc': f'{train_accuracy:.4f}',
+            'Time': f'{epoch_time:.1f}s'
+        })
+        
         logger.info(f'Epoch {epoch+1}/{NUM_EPOCHS}, Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.4f}, Time: {epoch_time:.2f}s')
         
         # 每幾個 epoch 生成一些文本
