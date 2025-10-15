@@ -131,10 +131,6 @@ class NGramModel:
                 
                 for context in contexts:
                     self.context_counts[context] += 1
-                
-                line_count += 1
-                if line_count % 10000 == 0:
-                    self.logger.info(f"Already processed {line_count} lines...")
 
         self.logger.info(f"Training completed!")
         self.logger.info(f"Total words: {self.total_words}")
@@ -234,6 +230,93 @@ class NGramModel:
         self.logger.info(f"{self.n}-gram 困惑度: {perplexity:.2f}")
         
         return perplexity
+    
+    def calculate_accuracy(self, test_file: str) -> float:
+        """
+        計算測試集的準確率 (accuracy)
+        預測下一個詞的準確率
+        
+        Args:
+            test_file (str): 測試文件路徑
+            
+        Returns:
+            float: 準確率值 (0-1)
+        """
+        self.logger.info(f"Calculating {self.n}-gram model accuracy...")
+        
+        correct_predictions = 0
+        total_predictions = 0
+        
+        with open(test_file, 'r', encoding='utf-8') as f:
+            count = 0
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                words = self.preprocess_text(line)
+                if len(words) < self.n:
+                    continue
+                
+                # 添加句子標記
+                words_with_markers = self.add_sentence_markers(words)
+
+                # 對每個可能的 n-gram 進行預測
+                for i in range(self.n - 1, len(words_with_markers)):
+                    count += 1
+                    if count > 100:  # 每行最多預測100次
+                        break
+                    # 取得 context (前 n-1 個詞)
+                    context = tuple(words_with_markers[i - self.n + 1:i])
+                    # 實際的下一個詞
+                    actual_word = words_with_markers[i]
+                    
+                    # 預測下一個詞 (選擇概率最高的詞)
+                    predicted_word = self.predict_next_word(context)
+                    
+                    if predicted_word == actual_word:
+                        correct_predictions += 1
+                    total_predictions += 1
+        
+        if total_predictions == 0:
+            self.logger.warning("No predictions made!")
+            return 0.0
+        
+        accuracy = correct_predictions / total_predictions
+        
+        self.logger.info(f"正確預測數: {correct_predictions}")
+        self.logger.info(f"總預測數: {total_predictions}")
+        self.logger.info(f"{self.n}-gram 準確率: {accuracy:.4f} ({accuracy*100:.2f}%)")
+        
+        return accuracy
+    
+    def predict_next_word(self, context: Tuple[str, ...]) -> str:
+        """
+        根據給定的 context 預測下一個最可能的詞
+        
+        Args:
+            context (Tuple[str, ...]): 上下文
+            
+        Returns:
+            str: 預測的下一個詞
+        """
+        if len(context) != self.n - 1:
+            raise ValueError(f"Context 長度應為 {self.n - 1}")
+        
+        # 找出所有以此 context 開始的 n-gram
+        candidate_ngrams = []
+        for ngram in self.ngram_counts:
+            if ngram[:-1] == context:
+                probability = self.get_probability(ngram)
+                candidate_ngrams.append((ngram[-1], probability))
+        
+        if not candidate_ngrams:
+            # 如果沒有找到匹配的 n-gram，返回未知詞標記
+            return self.unk_token
+        
+        # 選擇概率最高的詞
+        best_word = max(candidate_ngrams, key=lambda x: x[1])[0]
+        return best_word
     
     def generate_text(self, context: Tuple[str, ...], max_length: int = 20) -> str:
         """

@@ -10,10 +10,10 @@ import os
 from ngram_model import NGramModel
 
 def main():
-    
-    train_file = "train.txt"
-    test_file = "test.txt"
-    
+
+    train_file = "data/train.txt"
+    test_file = "data/test.txt"
+
     print("=" * 60)
     print("N-gram model Training and Evaluation")
     print("=" * 60)
@@ -34,16 +34,19 @@ def main():
         training_time = time.time() - start_time
         print(f"Training time: {training_time:.2f} seconds")
 
-        # Calculate perplexity
+        # Calculate perplexity and accuracy
         start_time = time.time()
         perplexity = model.calculate_perplexity(test_file)
+        accuracy = model.calculate_accuracy(test_file)
         test_time = time.time() - start_time
 
         print(f"Testing time: {test_time:.2f} seconds")
+        print(f"Accuracy: {accuracy:.4f} ({accuracy*100:.2f}%)")
         
         # save results and model
         results[n] = {
             'perplexity': perplexity,
+            'accuracy': accuracy,
             'training_time': training_time,
             'test_time': test_time,
             'vocab_size': len(model.vocabulary),
@@ -67,9 +70,9 @@ def main():
             print(f"  Error occurred during text generation: {e}")
         
         # Test with incomplete.txt for text completion
-        if os.path.exists("incomplete.txt"):
+        if os.path.exists(" data/incomplete.txt"):
             try:
-                with open("incomplete.txt", "r", encoding="utf-8") as f:
+                with open("data/incomplete.txt", "r", encoding="utf-8") as f:
                     incomplete_lines = [line.strip() for line in f if line.strip()]
                 
                 for i, incomplete_text in enumerate(incomplete_lines):
@@ -122,6 +125,12 @@ def main():
     pp_diff = ((trigram_pp - bigram_pp) / bigram_pp) * 100
 
     print(f"{'Perplexity':<20} {bigram_pp:<15.2f} {trigram_pp:<15.2f} {pp_diff:+.2f}%")
+    
+    bigram_acc = results[2]['accuracy']
+    trigram_acc = results[3]['accuracy']
+    acc_diff = ((trigram_acc - bigram_acc) / bigram_acc) * 100
+
+    print(f"{'Accuracy':<20} {bigram_acc:<15.4f} {trigram_acc:<15.4f} {acc_diff:+.2f}%")
 
     bigram_time = results[2]['training_time']
     trigram_time = results[3]['training_time']
@@ -147,6 +156,7 @@ def main():
             model_name = "Bigram" if n == 2 else "Trigram"
             f.write(f"{model_name} (n={n}) Results:\n")
             f.write(f"  Perplexity: {results[n]['perplexity']:.2f}\n")
+            f.write(f"  Accuracy: {results[n]['accuracy']:.4f} ({results[n]['accuracy']*100:.2f}%)\n")
             f.write(f"  Training time: {results[n]['training_time']:.2f} seconds\n")
             f.write(f"  Testing time: {results[n]['test_time']:.2f} seconds\n")
             f.write(f"  Vocabulary size: {results[n]['vocab_size']:,}\n")
@@ -157,6 +167,7 @@ def main():
 
         f.write("Comparison Results:\n")
         f.write(f"  Perplexity difference: {pp_diff:+.2f}%\n")
+        f.write(f"  Accuracy difference: {acc_diff:+.2f}%\n")
         f.write(f"  Training time difference: {time_diff:+.2f}%\n")
         f.write(f"  N-gram types difference: {ngram_diff:+.2f}%\n")
         
