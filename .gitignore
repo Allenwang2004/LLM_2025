@@ -1,4 +1,3 @@
-*.pdf
 .venv/
 *.pth
 /finalproject
