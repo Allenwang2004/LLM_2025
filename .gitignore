@@ -1,3 +1,58 @@
+# ---------------------------------------------------------------
+# Python / environment
+# ---------------------------------------------------------------
 .venv/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# ---------------------------------------------------------------
+# OS noise
+# ---------------------------------------------------------------
+.DS_Store
+._*
+
+# ---------------------------------------------------------------
+# Model checkpoints & adapters (regenerate by re-running training)
+# ---------------------------------------------------------------
 *.pth
+*.pt
+*.ckpt
+*.bin
+*.safetensors
+*.gguf
+llama32_1b_team_lora/
+ppo_finetuned_model/
+checkpoint-*/
+wandb/
+runs/
+
+# ---------------------------------------------------------------
+# Large datasets (>1 MB) -- see README "Data" for how to obtain them
+# ---------------------------------------------------------------
+# hw1/data/train.txt (93 MB), hw1/data/test.txt (23 MB)
+hw1/data/*.txt
+# ...but keep the 5-line generation probe
+!hw1/data/incomplete.txt
+# DBpedia-14 training split (1.6 MB)
+hw2/hw2-1/train.json
+# Commonsense-15k (7.3 MB)
+hw2/hw2-2/commonsense_15k.json
+
+# ---------------------------------------------------------------
+# Course slides / reference PDFs (~28 MB)
+# ---------------------------------------------------------------
+pdf/
+
+# ---------------------------------------------------------------
+# Generated artefacts
+# ---------------------------------------------------------------
+ngram_results.txt
+predictions/
+*_submission.csv
+final_predictions.csv
+
+# ---------------------------------------------------------------
+# Team project (tracked in its own repo)
+# ---------------------------------------------------------------
 /finalproject
